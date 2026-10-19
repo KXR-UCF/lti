@@ -2,12 +2,24 @@ import socket
 import serial
 import time
 import os
+from datetime import datetime # Imports the 'datetime' class from Python
+from pytz import timezone # Imports the 'timezone' function from the third-party 'pytz' library to handle global time zone definitions and conversions.
+
+# Setup the Eastern timezone configuration
+est = timezone('US/Eastern')
+
+# prints message with current time before each line for logging
+def print_log(message:str):
+    lines = message.split('\n')
+    for line in lines:
+        print(f"[{datetime.now(tz=est).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]}] {line}")
 
 controller_pi_address = "192.168.1.30"
 
 start_time = time.time()
 connected = False
 print(f"Attempting to connect to {controller_pi_address}")
+
 while not connected:
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -52,6 +64,8 @@ current_switch_states = {
     'launchKey': False,
     'abort': False
 }
+
+
 
 # Function to open/reopen pipe
 def open_pipe():
