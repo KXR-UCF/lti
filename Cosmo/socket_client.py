@@ -9,7 +9,8 @@ from pytz import timezone # Imports the 'timezone' function from the third-party
 est = timezone('US/Eastern')
 
 # prints message with current time before each line for logging
-def print_log(message:str):
+# replace all statements with print_log to update each print statements with timestamps
+def print_log(message:str): 
     lines = message.split('\n')
     for line in lines:
         print(f"[{datetime.now(tz=est).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]}] {line}")
@@ -18,7 +19,7 @@ controller_pi_address = "192.168.1.30"
 
 start_time = time.time()
 connected = False
-print(f"Attempting to connect to {controller_pi_address}")
+print_log(f"Attempting to connect to {controller_pi_address}")
 
 while not connected:
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -34,10 +35,10 @@ while not connected:
     except OSError as e:
         s.close()
         program_time = time.time() - start_time
-        print(f"{program_time:<5.2f}s Failed to identify with controller... Attempting to connect")
+        print_log(f"{program_time:<5.2f}s Failed to identify with controller... Attempting to connect")
         time.sleep(1)
 if connected:
-    print(f"Connected to {controller_pi_address}")
+    print_log(f"Connected to {controller_pi_address}")
 
 # s.connect(("192.168.1.30", 9600))
 ser = serial.Serial("/dev/ttyACM0", 9600)
@@ -46,7 +47,7 @@ ser = serial.Serial("/dev/ttyACM0", 9600)
 PIPE_PATH = '/tmp/switch_pipe'
 if not os.path.exists(PIPE_PATH):
     os.mkfifo(PIPE_PATH)
-    print(f"Created named pipe: {PIPE_PATH}")
+    print_log(f"Created named pipe: {PIPE_PATH}")
 
 # Track current switch states to resend on reconnection
 current_switch_states = {
@@ -72,10 +73,10 @@ def open_pipe():
     try:
         pipe_fd = os.open(PIPE_PATH, os.O_WRONLY | os.O_NONBLOCK)
         pipe = os.fdopen(pipe_fd, 'w')
-        print(f"✅ Opened named pipe for writing")
+        print_log(f"✅ Opened named pipe for writing")
         return pipe
     except OSError as e:
-        print(f"⚠️  Could not open pipe (server.js may not be running): {e}")
+        print_log(f"⚠️  Could not open pipe (server.js may not be running): {e}")
         return None
 
 # Function to parse and track switch state from message
@@ -121,7 +122,7 @@ def resend_all_states(pipe):
     if not pipe:
         return
 
-    print(f"📡 Resending current switch states to reconnected pipe...")
+    print_log(f"📡 Resending current switch states to reconnected pipe...")
 
     # Map switch states back to hardware message format
     switch_to_num = {
@@ -145,23 +146,23 @@ def resend_all_states(pipe):
             msg = f"{switch_num} {'Open' if state else 'Close'}"
             pipe.write(msg + '\n')
             pipe.flush()
-            print(f"  → {msg}")
+            print_log(f"  → {msg}")
 
         # Send launchKey state
         launch_msg = 'ENABLE FIRE' if current_switch_states['launchKey'] else 'DISABLE FIRE'
         pipe.write(launch_msg + '\n')
         pipe.flush()
-        print(f"  → {launch_msg}")
+        print_log(f"  → {launch_msg}")
 
         # Send abort state
         abort_msg = 'ABORT Open' if current_switch_states['abort'] else 'ABORT Close'
         pipe.write(abort_msg + '\n')
         pipe.flush()
-        print(f"  → {abort_msg}")
+        print_log(f"  → {abort_msg}")
 
-        print(f"✅ All states resent successfully")
+        print_log(f"✅ All states resent successfully")
     except Exception as e:
-        print(f"⚠️  Error resending states: {e}")
+        print_log(f"⚠️  Error resending states: {e}")
         return None
 
     return pipe
@@ -199,11 +200,11 @@ try:
 
             # if no response after 5 attempts give up
             if attempts > 5:
-                print(f"No responses: <{msg_payload.decode().strip()}>")
+                print_log(f"No responses: <{msg_payload.decode().strip()}>")
                 break
 
             s.send(msg_payload)
-            print(f"Sent: <{msg_payload.decode().strip()}>")
+            print_log(f"Sent: <{msg_payload.decode().strip()}>")
             attempts += 1
 
             # check for response
@@ -219,15 +220,15 @@ try:
                     if response_ack or response_err:
                         break
             except socket.timeout:
-                print("No ACK")
+                print_log("No ACK")
 
         # error check
         if response_err:
-            print(f"ERROR: {response_msg}")
+            print_log(f"ERROR: {response_msg}")
 
         # do something after a successful response
         if response_ack:
-            print(f"Received Response: {response_msg}")
+            print_log(f"Received Response: {response_msg}")
 
             msg_str = msg
 
@@ -240,14 +241,14 @@ try:
                     pipe.write(msg_str + '\n')
                     pipe.flush()
                 except BrokenPipeError:
-                    print("⚠️  Pipe broken (server.js disconnected) - will attempt reconnection")
+                    print_log("⚠️  Pipe broken (server.js disconnected) - will attempt reconnection")
                     pipe = None
                 except Exception as e:
-                    print(f"⚠️  Error writing to pipe: {e}")
+                    print_log(f"⚠️  Error writing to pipe: {e}")
                     pipe = None
             else:
                 # Try to reconnect pipe
-                print(f"🔄 Attempting to reconnect pipe...")
+                print_log(f"🔄 Attempting to reconnect pipe...")
                 pipe = open_pipe()
                 if pipe:
                     # Resend all current states after reconnection
@@ -258,15 +259,15 @@ try:
                             pipe.write(msg_str + '\n')
                             pipe.flush()
                         except Exception as e:
-                            print(f"⚠️  Error writing after reconnect: {e}")
+                            print_log(f"⚠️  Error writing after reconnect: {e}")
                             pipe = None
 
 except KeyboardInterrupt:
-    print("Interrupted by user")
+    print_log("Interrupted by user")
     try:
         s.send(b"SHUTDOWN;")
         response_msg = s.recv(1024).decode().strip()
-        print(f"Received Response: {response_msg}")
+        print_log(f"Received Response: {response_msg}")
     except Exception:
         pass
 
@@ -281,8 +282,8 @@ finally:
     try:
         if os.path.exists(PIPE_PATH):
             os.unlink(PIPE_PATH)
-            print(f"Removed named pipe: {PIPE_PATH}")
+            print_log(f"Removed named pipe: {PIPE_PATH}")
     except Exception as e:
-        print(f"Warning: Could not remove pipe: {e}")
+        print_log(f"Warning: Could not remove pipe: {e}")
 
-    print("Connections closed")
+    print_log("Connections closed")
