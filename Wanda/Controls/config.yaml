@@ -5,12 +5,12 @@ PIs:
     relays:
       1:
         name: OX VENT
-        switch: null
-        hold_position: null
+        switch: 2
+        hold_position: false
       2:
         name: OX FILL
-        switch: null
-        hold_position: null
+        switch: 1
+        hold_position: false
       3:
         name: N2 FILL
         switch: 6
@@ -18,11 +18,11 @@ PIs:
       4:
         name: N2 VENT
         switch: 7
-        hold_position: true
+        hold_position: false
       5:
         name: OX PRESS
-        switch: null
-        hold_position: null
+        switch: 4
+        hold_position: false
       6:
         name: ARM 1
         switch: null
@@ -33,7 +33,7 @@ PIs:
         hold_position: false
       8:
         name: FIRE
-        switch: 10
+        switch: null
         hold_position: false
 
   wanda2:
@@ -42,7 +42,7 @@ PIs:
     relays:
       1:
         name: FUEL MAIN  # Will be used in timing
-        switch: null
+        switch: 10
         hold_position: false
       2:
         name: OX MAIN # will be used in timing
@@ -51,18 +51,18 @@ PIs:
       3:
         name: FUEL RELIEF
         switch: 8
-        hold_position: true
+        hold_position: false
       4:
         name: OX RELIEF
         switch: 3
-        hold_position: true
+        hold_position: false
       5:
         name: FUEL PRESS
-        switch: null
-        hold_position: null
+        switch: 9
+        hold_position: false
       6:
         name: TORCH OX
-        switch: 4
+        switch: null
         hold_position: false
       7:
         name: TORCH GAS
