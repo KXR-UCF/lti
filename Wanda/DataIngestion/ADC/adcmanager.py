@@ -35,6 +35,7 @@ class DAQ:
 
         self.sensor_names = []
         self.sensors = {}
+        self.sensors_by_adc = {}
 
         self.load_ADC_from_config()
         self.load_sensors_from_config()
@@ -72,9 +73,10 @@ class DAQ:
         adc = self.adcs[adc_id]
         gain = self.config[f"ADC{adc_id}"]["gain"]
         data_rate = self.config[f"ADC{adc_id}"]["data_rate"]
+        buffer = self.config[f"ADC{adc_id}"].get("buffer", False)
 
         adc.init()
-        adc.configADC(ADS1256.GAIN_E[gain], ADS1256.DRATE_E[data_rate])
+        adc.configADC(ADS1256.GAIN_E[gain], ADS1256.DRATE_E[data_rate], buffer)
         if not self.config[f"ADC{adc_id}"]["differential"]:
             adc.setMode(0)
 
@@ -93,7 +95,14 @@ class DAQ:
 
             self.sensor_names.append(sensor_name)
             self.sensors[sensor_name] = self.create_sensor(sensor_name)
-        
+
+        self.sensors_by_adc = {adc_id: [] for adc_id in self.enabled_adc_ids}
+        for sensor in self.sensors.values():
+            if hasattr(sensor, 'adc_id'):
+                self.sensors_by_adc[sensor.adc_id].append(sensor)
+        for sensors in self.sensors_by_adc.values():
+            sensors.sort(key=lambda s: s.channel_id)
+
     def get_sensor_names(self) -> list:
         return self.sensor_names       
 
@@ -105,13 +114,25 @@ class DAQ:
         Fetches and applies calibration to all configured sensors.
         
         Returns:
-            results (dict): dictionary of {sensor_name: calibrated_value}.
+            dict: {sensor_name: calibrated_value}. A sensor whose ADC timed out is left out of the result
         """
         sensor_values = {}
-        for sensor in self.sensors.values():
-            sensor_values[sensor.name] = sensor.get_calibrated_value_linear()
+        pending = {adc_id: list(sensors) for adc_id, sensors in self.sensors_by_adc.items()}
+        while any(pending.values()):
+            # one channel per ADC per round
+            batch = [(adc_id, sensors.pop(0)) for adc_id, sensors in pending.items() if sensors]
+            for adc_id, sensor in batch:
+                self.adcs[adc_id].startConversion(sensor.channel_id)
+            for adc_id, sensor in batch:
+                try:
+                    voltage = self.adcs[adc_id].readConversionVoltage()
+                except TimeoutError as e:
+                    print_log(f"{sensor.name}: {e}")
+                    continue
+                sensor_values[sensor.name] = sensor.apply_calibration(voltage)
         return sensor_values
-    
+
+
     def check_health(self, retries: int = 1) -> bool:
         """Checks if the connected ADCs are responding properly, and attempts to reconnect if not."""
         all_healthy = True
@@ -125,7 +146,12 @@ class DAQ:
                 reconnected = False
                 for attempt in range(retries):
                     print_log(f"Attempting to reconnect ADC{adc_id} (Attempt {attempt + 1}/{retries})...")
-                    self.init_adc(adc_id)
+                    
+                    try:
+                        self.init_adc(adc_id)
+                    except TimeoutError as e:
+                        print_log(f"ADC{adc_id} reinit failed: {e}")
+                        continue
                     
                     if adc.readChipID() == 3:
                         print_log(f"ADC{adc_id} reconnected successfully.")
@@ -211,6 +237,18 @@ class Sensor:
         adc = self.daq.adcs[self.adc_id]
         sensor_voltage = adc.getChannelVoltage(self.channel_id) # gets the sensor voltage
         return sensor_voltage
+
+    def apply_calibration(self, voltage: float) -> float:
+        """Applies calibration to a voltage reading
+        
+        Args:
+            voltage (float): the voltage reading from the sensor
+        
+        Returns:
+            cal_value (float): the calibrated value from the sensor
+        """
+        cal_value = voltage * self.scale + self.zero
+        return cal_value
     
     def get_calibrated_value_linear(self):
         """Gets the calibrated value using the zero and scale from the config file
@@ -218,8 +256,7 @@ class Sensor:
         Returns:
             cal_value (float): the calibrated value from the sensor
         """
-        cal_value = self.get_voltage()*self.scale + self.zero
-        return cal_value
+        return self.apply_calibration(self.get_voltage())
 
     # def calibrate_tare(self, num_samples: int):
     #     """Calibrates the tare of the load cell from several samples
