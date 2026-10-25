@@ -10,11 +10,11 @@ ADC1:
     0: "pt2"
     1: "pt1"
     2: "pt9"
-    3: "pt3"
-    4: "pt4"
-    5: "pt5"
-    6: "pt6"
-    7: "pt7"
+    3: "pt7"
+    4: "pt9"
+    5: "pt8"
+    6: null
+    7: null
 
 ADC2:
   enabled: true
@@ -25,10 +25,10 @@ ADC2:
   CS_PIN: 7 
   DRDY_PIN: 23
   channels:
-    0: "pt8"
+    0: "pt4"
     1: "continuity_raw"
-    2: "pt25"
-    3: null
+    2: "pt6"
+    3: "pt5"
     4: null
     5: null
     6: null
