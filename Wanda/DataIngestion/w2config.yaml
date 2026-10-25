@@ -1,7 +1,7 @@
 ADC1:
   enabled: true
   differential: true
-  gain: "GAIN_64"
+  gain: "GAIN_1"
   data_rate: "3750SPS"
   RST_PIN: 24
   CS_PIN: 8        
@@ -10,7 +10,7 @@ ADC1:
     0: "lc1"
     1: "tc3"
     2: "tc4"
-    3: null
+    3: "lct"
 
 ADC2:
   enabled: true
@@ -36,7 +36,7 @@ sensors:
   lc3:
     zero: 10.581
     scale: 123989
-  lc4:
+  lct:
     zero: 10.644
     scale: 120001
   tc1:
