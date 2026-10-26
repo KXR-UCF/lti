@@ -81,8 +81,13 @@ class ADS1256:
     def digital_read(self, pin):
         return GPIO.input(self.drdy_pin)
 
-    def delay_ms(self, delaytime):
-        time.sleep(delaytime // 1000.0)
+    def delay_ms(self, time_ms):
+        time.sleep(time_ms / 1000.0)
+
+    def delay_us(self, time_us):
+        end = time.perf_counter() + time_us / 1e6
+        while time.perf_counter() < end:
+            pass
 
     def spi_writebyte(self, data):
         SPI.writebytes(data)
@@ -94,10 +99,8 @@ class ADS1256:
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         GPIO.setup(self.rst_pin, GPIO.OUT)
-        GPIO.setup(self.cs_pin, GPIO.OUT)
-        #GPIO.setup(DRDY_PIN, GPIO.IN)
         GPIO.setup(self.drdy_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        # SPI.max_speed_hz = 20000
+        GPIO.setup(self.cs_pin, GPIO.OUT, initial=GPIO.HIGH)
         SPI.mode = 0b01
         return 0
 
@@ -128,30 +131,31 @@ class ADS1256:
         self.spi_writebyte([CMD['CMD_RREG'] | reg, 0x00])
         data = self.spi_readbytes(1)
         self.digital_write(self.cs_pin, GPIO.HIGH)#cs 1
-
         return data
-        
-    def waitDRDY(self):
-        for i in range(0,400000,1):
-            if(self.digital_read(self.drdy_pin) == 0):
-                
-                break
-        if(i >= 400000):
-            print ("Time Out ...\r\n")
-        
-        
+
+
+    def waitDRDY(self, timeout_s=0.5):
+        deadline = time.monotonic() + timeout_s
+        while(self.digital_read(self.drdy_pin) != 0):
+            if time.monotonic() > deadline:
+                raise TimeoutError(f"ADS1256 (CS {self.cs_pin}) DRDY timeout")
+
+
     def readChipID(self):
-        self.waitDRDY()
+        try:
+            self.waitDRDY()
+        except TimeoutError:
+            return -1
         id = self.readData(REG_E['REG_STATUS'])
         id = id[0] >> 4
         # print 'ID',id
         return id
         
     #The configuration parameters of ADC, gain and data rate
-    def configADC(self, gain, drate):
+    def configADC(self, gain, drate, buffer=False):
         self.waitDRDY()
         buf = [0,0,0,0,0,0,0,0]
-        buf[0] = (0<<3) | (1<<2) | (0<<1)
+        buf[0] = (0<<3) | (1<<2) | (int(buffer)<<1)
         buf[1] = 0x08
         buf[2] = (0<<5) | (0<<3) | (gain<<0)
         buf[3] = drate
@@ -163,7 +167,6 @@ class ADS1256:
         self.digital_write(self.cs_pin, GPIO.HIGH)#cs 1
         self.delay_ms(1) 
         self.gain = 2 ** gain
-
 
 
     def setChannel(self, Channel):
@@ -203,12 +206,13 @@ class ADS1256:
             return -1
         self.configADC(GAIN_E['GAIN_1'], DRATE_E['30000SPS'])
         return 0
-        
+
+
     def read_ADC_Data(self):
         self.waitDRDY()
         self.digital_write(self.cs_pin, GPIO.LOW)#cs  0
         self.spi_writebyte([CMD['CMD_RDATA']])
-        self.delay_ms(10)
+        self.delay_us(10)
 
         buf = self.spi_readbytes(3)
         self.digital_write(self.cs_pin, GPIO.HIGH)#cs 1
@@ -219,45 +223,113 @@ class ADS1256:
         if read & 0x800000:
             read -= 0x1000000
         return read
- 
+
+
+    def startConversion(self, channel):
+        """Select a channel and restart the conversion without waiting for it"""
+        if self.scan_mode == 0:  # 0 = Single-ended, 1 = differential
+            if channel >= 8:
+                raise ValueError(f"single-ended channel {channel} out of range")
+            self.setChannel(channel)
+        else:
+            if channel >= 4:
+                raise ValueError(f"differential channel {channel} out of range")
+            self.setDiffChannel(channel)
+        self.writeCmd(CMD['CMD_SYNC'])
+        self.writeCmd(CMD['CMD_WAKEUP'])
+
+
+    def readConversionVoltage(self):
+        """Read the conversion result for a channel and return the voltage"""
+        values = self.read_ADC_Data() 
+        voltages = (values * 5.0 / 0x7fffff) / self.gain
+        return voltages
+
+
     def getChannelValue(self, Channel):
+        """Read one channel and return the raw 24-bit ADC count (blocking).
+
+        Selects the channel, restarts the conversion, waits for it to finish,
+        and reads the result.
+
+        Deprecated:
+            Converts one channel at a time. Use startConversion() +
+            readConversionVoltage() to read both ADCs in parallel.
+
+        Args:
+            Channel (int): 0-7 in single-ended mode, 0-3 in differential mode.
+
+        Returns:
+            int: signed count from -8388608 to 8388607, or 0 if the channel is
+                out of range for the current mode.
+        """
         if(self.scan_mode == 0):# 0  Single-ended input  8 channel1 Differential input  4 channe
             if(Channel>=8):
                 return 0
-            # print(self.scan_mode)
             self.setChannel(Channel)
             self.writeCmd(CMD['CMD_SYNC'])
-            # self.delay_ms(10)
             self.writeCmd(CMD['CMD_WAKEUP'])
-            # self.delay_ms(200)
             Value = self.read_ADC_Data()
         else:
             if(Channel>=4):
                 return 0
             self.setDiffChannel(Channel)
             self.writeCmd(CMD['CMD_SYNC'])
-            self.delay_ms(10)
             self.writeCmd(CMD['CMD_WAKEUP'])
-            self.delay_ms(10)
             Value = self.read_ADC_Data()
         return Value
-    
+
+
     def getChannelVoltage(self, channel, Vref=2.5):
+        """Read one channel and return its voltage (blocking).
+
+        Deprecated:
+            Converts one channel at a time. Use startConversion() +
+            readConversionVoltage() to read both ADCs in parallel.
+
+        Args:
+            channel (int): 0-7 in single-ended mode, 0-3 in differential mode.
+            Vref (float): unused; the conversion assumes the board's 2.5 V
+                reference.
+
+        Returns:
+            float: voltage at the ADC input in volts (already divided by the
+                PGA gain), or 0.0 if the channel is out of range.
+        """
         value = self.getChannelValue(channel)
         voltage = (value * 5.0 / 0x7fffff) / self.gain
         return voltage
-        
-    # returns all values by channel
-    # automatically handles differential mode through getChannelValue
+
+
     def getAllValues(self):
+        """Read every channel one at a time and return the raw ADC counts.
+
+        Deprecated:
+            Converts one channel at a time. Use startConversion() +
+            readConversionVoltage() to read both ADCs in parallel.
+
+        Returns:
+            list[int]: 8 signed 24-bit counts, indexed by channel. In
+                differential mode only 0-3 are read; 4-7 are 0.
+        """
         ADC_Value = [0,0,0,0,0,0,0,0]
         for i in range(0,8,1):
             ADC_Value[i] = self.getChannelValue(i)
         return ADC_Value
-    
+
+
     def getAllVoltages(self):
+        """Read every channel one at a time and return their voltages.
+
+        Deprecated:
+            Converts one channel at a time. Use startConversion() +
+            readConversionVoltage() to read both ADCs in parallel.
+
+        Returns:
+            list[float]: 8 voltages in volts, indexed by channel. In
+                differential mode only 0-3 are read; 4-7 are 0.
+        """
         ADC_Voltage = [0,0,0,0,0,0,0,0]
         for i in range(0,8,1):
             ADC_Voltage[i] = self.getChannelVoltage(i)
         return ADC_Voltage
-### END OF FILE ###

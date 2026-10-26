@@ -214,7 +214,7 @@ with DAQ(DAQ_CONFIG_FILENAME) as daq:
             columns = daq.get_all_sensor_values()
 
             # sum net force
-            if net_force_measured:
+            if net_force_measured and all(lc in columns for lc in load_cells_for_net_force):
                 columns['lc_net_force'] = sum(columns.get(lc, 0) for lc in load_cells_for_net_force)
             stats['adc_time'].append(time.perf_counter() - adc_start)
             timestamp = datetime.now(tz=est)
