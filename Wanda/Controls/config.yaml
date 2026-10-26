@@ -4,24 +4,24 @@ PIs:
     ip: 192.168.1.30
     relays:
       1:
-        name: Nox Fill
-        switch: 1
+        name: OX VENT
+        switch: 2
         hold_position: false
       2:
-        name: Nox Vent
-        switch: 2
-        hold_position: true
+        name: OX FILL
+        switch: 1
+        hold_position: false
       3:
-        name: N2 Fill
+        name: N2 FILL
         switch: 6
         hold_position: false
       4:
-        name: N2 Vent
+        name: N2 VENT
         switch: 7
-        hold_position: true
+        hold_position: false
       5:
-        name: null
-        switch: null
+        name: OX PRESS
+        switch: 4
         hold_position: false
       6:
         name: ARM 1
@@ -33,7 +33,7 @@ PIs:
         hold_position: false
       8:
         name: FIRE
-        switch: 10
+        switch: null
         hold_position: false
 
   wanda2:
@@ -41,31 +41,31 @@ PIs:
     ip: 192.168.1.31
     relays:
       1:
-        name: Fuel Main  # Will be used in timing
-        switch: null
+        name: FUEL MAIN  # Will be used in timing
+        switch: 10
         hold_position: false
       2:
-        name: NOX Main # will be used in timing
+        name: OX MAIN # will be used in timing
         switch: 5
         hold_position: false
       3:
-        name: Fuel Relief
+        name: FUEL RELIEF
         switch: 8
-        hold_position: true
+        hold_position: false
       4:
-        name: NOX Relief
+        name: OX RELIEF
         switch: 3
-        hold_position: true
+        hold_position: false
       5:
-        name: Dome Actuator
+        name: FUEL PRESS
         switch: 9
         hold_position: false
       6:
-        name: Torch OX
-        switch: 4
+        name: TORCH OX
+        switch: null
         hold_position: false
       7:
-        name: Torch Gas
+        name: TORCH GAS
         switch: null
         hold_position: false
       8:

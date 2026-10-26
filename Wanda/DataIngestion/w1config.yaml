@@ -9,12 +9,12 @@ ADC1:
   channels:
     0: "pt2"
     1: "pt1"
-    2: "pt9"
-    3: "pt3"
-    4: "pt4"
-    5: "pt5"
-    6: "pt6"
-    7: "pt7"
+    2: "pt3"
+    3: "pt7"
+    4: null
+    5: "pt8"
+    6: null
+    7: null
 
 ADC2:
   enabled: true
@@ -25,10 +25,10 @@ ADC2:
   CS_PIN: 7 
   DRDY_PIN: 23
   channels:
-    0: "pt8"
+    0: "pt4"
     1: "continuity_raw"
-    2: "pt25"
-    3: null
+    2: "pt6"
+    3: "pt5"
     4: null
     5: null
     6: null
@@ -36,35 +36,29 @@ ADC2:
 
 sensors:
   pt1:
-    zero: -1031.4
-    scale: 3071.4
+    zero: -2257.8
+    scale: 6562.1
   pt2:
     zero: -283.77
     scale: 918.83
   pt3:
-    zero: -2257.8
-    scale: 6562.1
+    zero: -283.77
+    scale: 918.83
   pt4:
-    zero: -2257.8
-    scale: 6562.1
+    zero: 0
+    scale: 1
   pt5:
-    zero: -623.71
-    scale: 1918
+    zero: -283.77
+    scale: 918.83
   pt6:
-    zero: -158.01
-    scale: 573.23
+    zero: 0
+    scale: 1
   pt7:
-    zero: -158.01
-    scale: 573.23
+    zero: -283.77
+    scale: 918.83
   pt8:
-    zero: -158.01
-    scale: 573.23
-  pt9:
-    zero: -188.96
-    scale: 658.39
-  pt25:
-    zero: -2257.8
-    scale: 6562.1
+    zero: -283.77
+    scale: 918.83
   continuity_raw:
     zero: 0
     scale: 1
