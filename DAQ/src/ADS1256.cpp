@@ -9,6 +9,7 @@ ADS1256::ADS1256(uint8_t csPin, uint8_t drdyPin, uint8_t resetPin) {
     _rate = SPS_30000;
 }
 
+//Set the pins as in/out and default outputs, send reset command and check that MUX returned to default values
 bool ADS1256::begin() {
     pinMode(_cs, OUTPUT);
     pinMode(_drdy,  INPUT);
@@ -19,6 +20,9 @@ bool ADS1256::begin() {
     SPI.begin();
 
     reset();
+
+    writeRegister(REG_STATUS, 0x04);
+
     uint8_t mux = readRegister(REG_MUX);
 
     return (mux == 0x01);
@@ -64,14 +68,18 @@ void ADS1256::writeRegister(Reg reg, uint8_t value) {
 
 void ADS1256::setChannel(uint8_t pos, uint8_t neg) {
 
+    //The neg and pos are both 4 bit values, make sure that the most signifcant 4 bits are all 0's
     pos &= 0b00001111;
     neg &= 0b00001111;
+
+    //Combine the neg and pos into one value
     uint8_t select = (pos << 4) | (neg << 0);
 
+    //Write the new channel selection to the MUX
     writeRegister(REG_MUX, select);
     sendCommand(CMD_SYNC);
     sendCommand(CMD_WAKEUP);
-    settlingDelay();
+    settlingDelayUs();
 }
 
 void ADS1256::setGain(Gain gain) {
@@ -80,11 +88,15 @@ void ADS1256::setGain(Gain gain) {
     writeRegister(REG_ADCON, adcon); //Write the new ADCON back to the register
 
     _gain = 1 << gain; //Store the gain multiplier
+
+    waitLowDRDY();
 }
 
 void ADS1256::setDataRate(DataRate rate) {
     writeRegister(REG_DRATE, rate);
     _rate = rate;
+
+    waitLowDRDY();
 }
 
 int32_t ADS1256::readRaw() {
@@ -93,6 +105,7 @@ int32_t ADS1256::readRaw() {
     SPI.beginTransaction(SPISettings(SPI_CLOCK_HZ, MSBFIRST, SPI_MODE1));
     digitalWrite(_cs, LOW);
 
+    //Reads 24 bits, broken into 3 bytes
     uint8_t d0 = 0;
     uint8_t d1 = 0;
     uint8_t d2 = 0;
@@ -100,6 +113,7 @@ int32_t ADS1256::readRaw() {
     SPI.transfer(CMD_RDATA);
     delayMicroseconds(10);
 
+    //Send dummy byte (0x00) in order to get each byte of the data
     d0 = SPI.transfer(0x00);
     d1 = SPI.transfer(0x00);
     d2 = SPI.transfer(0x00);
@@ -107,8 +121,10 @@ int32_t ADS1256::readRaw() {
     digitalWrite(_cs, HIGH);
     SPI.endTransaction();
     
+    //Combine all of the bytes into one value
     int32_t read = (d0 << 16) | (d1 << 8) | (d2 << 0);
 
+    //Apply 2's complement if needed since data is signed
     if (read & 0x800000) { 
         read -= 0x1000000;      
     }
@@ -121,62 +137,13 @@ float ADS1256::readVolts() {
     return rawToVolts(raw);
 }
 
-void ADS1256::startContinious() {
-    waitLowDRDY();
-    
-    SPI.beginTransaction(SPISettings(SPI_CLOCK_HZ, MSBFIRST, SPI_MODE1));
-    digitalWrite(_cs, LOW);
-    SPI.transfer(CMD_RDATAC);
-    delayMicroseconds(10);
-}
-
-int32_t ADS1256::readContiniousRaw() {
-    waitLowDRDY();
-
-    uint8_t d0 = 0;
-    uint8_t d1 = 0;
-    uint8_t d2 = 0;
-
-    d0 = SPI.transfer(0x00);
-    d1 = SPI.transfer(0x00);
-    d2 = SPI.transfer(0x00);
-    
-    int32_t read = (d0 << 16) | (d1 << 8) | (d2 << 0);
-
-    if (read & 0x800000) { 
-        read -= 0x1000000;      
-    }
-
-    //waitHighDRDY();
-
-    return read;
-}
-
-float ADS1256::readContiniousVolts() {
-    int32_t raw = readContiniousRaw();
-    return rawToVolts(raw);
-}
-
-void ADS1256::stopContinious() {
-    waitLowDRDY();
-    SPI.transfer(CMD_SDATAC);
-    digitalWrite(_cs, HIGH);
-    SPI.endTransaction();
-}
-
-void ADS1256::waitHighDRDY() {
-    int t = millis();
-    while(digitalRead(_drdy) == LOW) {
-        if(millis() - t > 500) {
-            Serial.println("wait high hang");
-            break;
-        }
-    };
-}
-
 void ADS1256::waitLowDRDY() {
+    //Store start time for timeout tracking
     int t = millis();
+
+    //Wait for DRDY to go low
     while(digitalRead(_drdy) == HIGH) {
+        //Check if time elapsed has reached timeout
         if(millis() - t > 500) {
             Serial.println("wait low hang");
             break;
@@ -187,12 +154,17 @@ void ADS1256::waitLowDRDY() {
 void ADS1256::sendCommand(CMD cmd) {
     SPI.beginTransaction(SPISettings(SPI_CLOCK_HZ, MSBFIRST, SPI_MODE1));
     digitalWrite(_cs, LOW);
+
+    //Send command, wait for timing
     SPI.transfer(cmd);
+    delayMicroseconds(10);
+    
     digitalWrite(_cs, HIGH);
     SPI.endTransaction();
 }
 
-void ADS1256::settlingDelay() {
+void ADS1256::settlingDelayUs() {
+    //Check current data rate, and use correct settling delay
     int delay;
         switch(_rate) {
         case SPS_30000: delay = 210;    break;
@@ -218,6 +190,15 @@ void ADS1256::settlingDelay() {
 }
 
 float ADS1256::rawToVolts(int32_t raw) {
+    //Convert the raw read into volts, incorporating gain
     float volts = (raw * 2.0f * _vref) / (_gain * 8388607.0f);
     return volts;
+}
+
+void ADS1256::readAllChannels(const uint8_t* posChannels, const uint8_t* negChannels, float* values, uint8_t numChannels) {
+    
+    for(int i = 0; i < numChannels; i++) {
+        setChannel(posChannels[i], negChannels[i]);
+        values[i] = readVolts();
+    }
 }

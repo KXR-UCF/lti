@@ -81,17 +81,13 @@ public:
 
     int32_t readRaw();                 
     float   readVolts();               
-    void    startContinious();
-    int32_t readContiniousRaw();
-    float   readContiniousVolts();
-    void    stopContinious();
     float   rawToVolts(int32_t raw);
+    void    readAllChannels(const uint8_t* posChannels, const uint8_t* negChannels, float* values, uint8_t numChannels);
 
 private:
-    void    waitHighDRDY();
     void    waitLowDRDY();
     void    sendCommand(CMD cmd);
-    void    settlingDelay();
+    void    settlingDelayUs();
 
     uint8_t _cs, _drdy, _reset;
     uint8_t _gain;
