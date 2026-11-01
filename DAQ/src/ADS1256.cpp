@@ -132,11 +132,6 @@ int32_t ADS1256::readRaw() {
     return read;
 }
 
-float ADS1256::readVolts() {
-    int32_t raw = readRaw();
-    return rawToVolts(raw);
-}
-
 void ADS1256::waitLowDRDY() {
     //Store start time for timeout tracking
     int t = millis();
@@ -193,12 +188,4 @@ float ADS1256::rawToVolts(int32_t raw) {
     //Convert the raw read into volts, incorporating gain
     float volts = (raw * 2.0f * _vref) / (_gain * 8388607.0f);
     return volts;
-}
-
-void ADS1256::readAllChannels(const uint8_t* posChannels, const uint8_t* negChannels, float* values, uint8_t numChannels) {
-    
-    for(int i = 0; i < numChannels; i++) {
-        setChannel(posChannels[i], negChannels[i]);
-        values[i] = readVolts();
-    }
 }

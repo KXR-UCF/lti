@@ -79,10 +79,8 @@ public:
     void setGain(Gain gain);
     void setDataRate(DataRate rate);
 
-    int32_t readRaw();                 
-    float   readVolts();               
+    int32_t readRaw();                             
     float   rawToVolts(int32_t raw);
-    void    readAllChannels(const uint8_t* posChannels, const uint8_t* negChannels, float* values, uint8_t numChannels);
 
 private:
     void    waitLowDRDY();
