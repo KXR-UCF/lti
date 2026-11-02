@@ -14,16 +14,6 @@ readonly SCRIPTS_DIR="${WANDA_DIR}/Scripts"
 readonly VENV_DIR="${WANDA_HOME}/venv"
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-INSTALL_GRAFANA=true
-case "${1:-}" in
-    "") ;;
-    --skip-grafana) INSTALL_GRAFANA=false ;;
-    *)
-        echo "Usage: $0 [--skip-grafana]" >&2
-        exit 1
-        ;;
-esac
-
 if [[ "$(id -un)" != "${WANDA_USER}" ]]; then
     echo "Run this script as ${WANDA_USER}, not $(id -un)." >&2
     exit 1
@@ -53,27 +43,6 @@ python3 -m venv "${VENV_DIR}"
 "${VENV_DIR}/bin/python" -m pip install --upgrade pip
 "${VENV_DIR}/bin/python" -m pip install -r "${WANDA_DIR}/requirements.txt"
 
-echo "--- Installing Docker ---"
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
-
-source /etc/os-release
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian ${VERSION_CODENAME} stable" \
-  | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-sudo usermod -aG docker "${WANDA_USER}"
-
-echo "--- Creating QuestDB container ---"
-if ! sudo docker container inspect osiris > /dev/null 2>&1; then
-    sudo bash "${WANDA_DIR}/Scripts/wanda_questdb_setup.sh"
-else
-    echo "QuestDB container 'osiris' already exists; leaving it unchanged."
-fi
-
 echo "--- Installing WANDA systemd units ---"
 sudo install -m 0644 "${WANDA_DIR}"/Systemd/*.service /etc/systemd/system/
 sudo systemctl daemon-reload
@@ -94,13 +63,5 @@ if ! grep -q '^dtoverlay=spi0-0cs' "${BOOT_CONFIG}"; then
     echo 'dtoverlay=spi0-0cs' | sudo tee -a "${BOOT_CONFIG}" > /dev/null
 fi
 
-if [[ "${INSTALL_GRAFANA}" == "true" ]]; then
-    echo "--- Setting up Grafana ---"
-    bash "${WANDA_DIR}/Scripts/wanda_grafana_setup.sh"
-fi
-
 echo "=== Setup complete ==="
 echo "Reboot before using the ADS1256 hardware."
-echo "Log out and back in before using Docker without sudo."
-echo "The WANDA status server is running; review the Pi role, Grafana token files,"
-echo "and service configuration before enabling control or data-acquisition services."
