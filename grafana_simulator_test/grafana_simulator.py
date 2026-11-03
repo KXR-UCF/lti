@@ -4,7 +4,7 @@
 from adcmanager import DAQ
 
 import numpy as np
-from questdb.ingress import Sender, Protocol, TimestampNanos
+# from questdb.ingress import Sender, Protocol, TimestampNanos
 
 import time
 import socket
@@ -24,7 +24,8 @@ module_path = os.path.abspath(__file__)
 module_directory = os.path.dirname(module_path)
 
 # config
-DAQ_CONFIG_FILENAME = "w1config.yaml"
+DAQ1_CONFIG_FILENAME = "w1config.yaml"
+DAQ2_CONFIG_FILENAME = "w2config.yaml"
 TARGET_RPS = 100
 SAMPLE_INTERVAL = 1.0 / TARGET_RPS
 
@@ -176,95 +177,107 @@ def grafana_worker():
         raise ValueError("urmom")
 
 # init sensors
-with DAQ(DAQ_CONFIG_FILENAME) as daq:
-    sensor_dict = daq.get_sensor_dict()
+daq1 = DAQ(DAQ1_CONFIG_FILENAME)
+daq2 = DAQ(DAQ2_CONFIG_FILENAME)
 
-    # sensors = [adcmanager.Sensor(name) for name in adcmanager.config["sensors"]]
-    load_cells_for_net_force = ['lc1', 'lc2', 'lc3']
-    net_force_measured = any(sensor_name in load_cells_for_net_force for sensor_name in sensor_dict.keys())
+sensor_dict1 = daq1.get_sensor_dict()
+sensor_dict2 = daq2.get_sensor_dict()
 
-    # start worker threads
-    # threading.Thread(target=questdb_worker, daemon=True).start()
-    if GRAFANA_ENABLED:
-        threading.Thread(target=grafana_worker, daemon=True).start()
-    else:
-        print_log("Warning: grafana.key not found. Grafana streaming disabled.")
+# sensors = [adcmanager.Sensor(name) for name in adcmanager.config["sensors"]]
+load_cells_for_net_force = ['lc1', 'lc2', 'lc3', 'lc4', 'lc5', 'lc6', 'lc7', 'lc8', 'lc9']
 
-    row_count = 0
-    start_time = time.time()
-    last_report_rows = 0
-    last_report_time = time.time()
+net_force_measured1 = any(sensor_name in load_cells_for_net_force for sensor_name in sensor_dict1.keys())
+net_force_measured2 = any(sensor_name in load_cells_for_net_force for sensor_name in sensor_dict2.keys())
 
-    print_log("Starting Data Ingestion")
-    try:
-        next_sample_time = time.time()
-        while True:
-            loop_start = time.perf_counter()
-            # save all sensor values
-            adc_start = time.perf_counter()
-            columns = daq.get_all_sensor_values()
+# start worker threads
+# threading.Thread(target=questdb_worker, daemon=True).start()
+if GRAFANA_ENABLED:
+    threading.Thread(target=grafana_worker, daemon=True).start()
+else:
+    print_log("Warning: grafana.key not found. Grafana streaming disabled.")
 
-            # sum net force
-            if net_force_measured:
-                columns['lc_net_force'] = sum(columns.get(lc, 0) for lc in load_cells_for_net_force)
-            stats['adc_time'].append(time.perf_counter() - adc_start)
-            timestamp = datetime.now(tz=est)
+row_count = 0
+start_time = time.time()
+last_report_rows = 0
+last_report_time = time.time()
 
-            # send to workers
-            queue_start = time.perf_counter()
-            packet = {'columns': columns, 'time': timestamp}
-            
-            try:
-                questdb_queue.put_nowait(packet)
-            except queue.Full:
-                if row_count % TARGET_RPS == 0:
-                    print_log("Warning: Data Loss <QUESTDB QUEUE FULL>")
+print_log("Starting Data Ingestion")
+try:
+    next_sample_time = time.time()
+    while True:
+        loop_start = time.perf_counter()
+        # save all sensor values
+        adc_start = time.perf_counter()
+        columns1 = daq1.get_all_sensor_values()
+        columns2 = daq2.get_all_sensor_values()
 
-            try:    
-                if GRAFANA_ENABLED:
-                    grafana_queue.put_nowait(packet)
-            except queue.Full:
-                if row_count % TARGET_RPS == 0:
-                    print_log("Warning: Data Loss <GRAFANA QUEUE FULL>")
+        # sum net force
+        if net_force_measured1:
+            columns1['lc_net_force'] = sum(columns1.get(lc, 0) for lc in load_cells_for_net_force)
+        if net_force_measured2:
+            columns2['lc_net_force2'] = sum(columns2.get(lc, 0) for lc in load_cells_for_net_force)
+        
+        stats['adc_time'].append(time.perf_counter() - adc_start)
+        timestamp = datetime.now(tz=est)
 
-            stats['queue_wait'].append(time.perf_counter() - queue_start)
+        # send to workers
+        queue_start = time.perf_counter()
+        packet1 = {'columns': columns1, 'time': timestamp}
+        packet2 = {'columns': columns2, 'time': timestamp}
+        
+        try:
+            questdb_queue.put_nowait(packet1)
+            questdb_queue.put_nowait(packet2)
+        except queue.Full:
+            if row_count % TARGET_RPS == 0:
+                print_log("Warning: Data Loss <QUESTDB QUEUE FULL>")
 
-            row_count += 1
-            stats['main_loop_time'].append(time.perf_counter() - loop_start)
+        try:    
+            if GRAFANA_ENABLED:
+                grafana_queue.put_nowait(packet1)
+                grafana_queue.put_nowait(packet2)
+        except queue.Full:
+            if row_count % TARGET_RPS == 0:
+                print_log("Warning: Data Loss <GRAFANA QUEUE FULL>")
 
-            # report speed stats
-            current_time = time.time()
-            if current_time - last_report_time > 10:
-                # get averages
-                avg_rps = (row_count - last_report_rows) / (current_time - last_report_time)
-                avg_adc = np.mean(stats['adc_time']) * 1000
-                avg_questdb = np.mean(stats['questdb_send_time']) * 1000
-                if GRAFANA_ENABLED:
-                    avg_grafana = np.mean(stats['grafana_send_time']) * 1000
-                avg_queuew = np.mean(stats['queue_wait']) * 1000
+        stats['queue_wait'].append(time.perf_counter() - queue_start)
 
-                # report
-                print_log(f"="*50)
-                print_log(f"AVG RPS:     {avg_rps:.1f}")
-                print_log(f"AVG ADC:     {avg_adc:.1f} ms")
-                print_log(f"AVG QuestDB: {avg_questdb:.1f} ms")
-                if GRAFANA_ENABLED:
-                    print_log(f"AVG Grafana: {avg_grafana:.1f} ms")
-                print_log(f"AVG Queue:   {avg_queuew:.1f} ms")
+        row_count += 1
+        stats['main_loop_time'].append(time.perf_counter() - loop_start)
 
-                # reset last
-                last_report_rows = row_count
-                last_report_time = current_time
+        # report speed stats
+        current_time = time.time()
+        if current_time - last_report_time > 10:
+            # get averages
+            avg_rps = (row_count - last_report_rows) / (current_time - last_report_time)
+            avg_adc = np.mean(stats['adc_time']) * 1000
+            avg_questdb = np.mean(stats['questdb_send_time']) * 1000
+            if GRAFANA_ENABLED:
+                avg_grafana = np.mean(stats['grafana_send_time']) * 1000
+            avg_queuew = np.mean(stats['queue_wait']) * 1000
 
-            next_sample_time += SAMPLE_INTERVAL
-            sleep_time = next_sample_time - time.time()
-            if sleep_time > 0:
-                time.sleep(sleep_time)
+            # report
+            print_log(f"="*50)
+            print_log(f"AVG RPS:     {avg_rps:.1f}")
+            print_log(f"AVG ADC:     {avg_adc:.1f} ms")
+            print_log(f"AVG QuestDB: {avg_questdb:.1f} ms")
+            if GRAFANA_ENABLED:
+                print_log(f"AVG Grafana: {avg_grafana:.1f} ms")
+            print_log(f"AVG Queue:   {avg_queuew:.1f} ms")
 
-    except KeyboardInterrupt:
-        print_log("Program interuppted by user")
+            # reset last
+            last_report_rows = row_count
+            last_report_time = current_time
 
-    except Exception as e:
-        print_log(f"Unexpected error: {e}")
-        import traceback
-        traceback.print_exc()
+        next_sample_time += SAMPLE_INTERVAL
+        sleep_time = next_sample_time - time.time()
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+
+except KeyboardInterrupt:
+    print_log("Program interuppted by user")
+
+except Exception as e:
+    print_log(f"Unexpected error: {e}")
+    import traceback
+    traceback.print_exc()
