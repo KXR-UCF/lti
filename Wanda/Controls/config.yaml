@@ -6,7 +6,7 @@ PIs:
       1:
         name: OX VENT
         switch: 2
-        hold_position: false
+        hold_position: null
       2:
         name: OX FILL
         switch: 1
