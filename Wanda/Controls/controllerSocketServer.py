@@ -651,7 +651,7 @@ class ControllerServer:
             if pi_data["enabled"]:
                 for relay_id, relay_data in pi_data["relays"].items():
 
-                    hold_state = relay_data.get("hold_position", False)
+                    hold_state = relay_data.get("hold_position", None)
                     if hold_state is None:
                         continue
                     

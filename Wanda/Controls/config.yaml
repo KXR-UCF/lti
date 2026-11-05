@@ -14,7 +14,7 @@ PIs:
       3:
         name: N2 FILL
         switch: 6
-        hold_position: false
+        hold_position: null
       4:
         name: N2 VENT
         switch: 7
