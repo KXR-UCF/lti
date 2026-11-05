@@ -4,13 +4,13 @@ PIs:
     ip: 192.168.1.30
     relays:
       1:
-        name: OX VENT
-        switch: 2
-        hold_position: false
-      2:
         name: OX FILL
         switch: 1
         hold_position: false
+      2:
+        name: OX VENT
+        switch: 2
+        hold_position: null
       3:
         name: N2 FILL
         switch: 6
@@ -18,23 +18,23 @@ PIs:
       4:
         name: N2 VENT
         switch: 7
-        hold_position: false
+        hold_position: null
       5:
-        name: OX PRESS
-        switch: 4
-        hold_position: false
+        name: null
+        switch: null
+        hold_position: null
       6:
         name: ARM 1
         switch: null
-        hold_position: false
+        hold_position: null
       7:
         name: ARM 2
         switch: null
-        hold_position: false
+        hold_position: null
       8:
         name: FIRE
         switch: null
-        hold_position: false
+        hold_position: null
 
   wanda2:
     enabled: true
@@ -43,35 +43,35 @@ PIs:
       1:
         name: FUEL MAIN  # Will be used in timing
         switch: 10
-        hold_position: false
+        hold_position: null
       2:
         name: OX MAIN # will be used in timing
         switch: 5
-        hold_position: false
+        hold_position: null
       3:
         name: FUEL RELIEF
         switch: 8
-        hold_position: false
+        hold_position: null
       4:
         name: OX RELIEF
         switch: 3
-        hold_position: false
+        hold_position: null
       5:
         name: FUEL PRESS
         switch: 9
-        hold_position: false
+        hold_position: null
       6:
-        name: TORCH OX
+        name: Torch OX
         switch: null
-        hold_position: false
+        hold_position: null
       7:
         name: TORCH GAS
         switch: null
-        hold_position: false
+        hold_position: null
       8:
-        name: null
-        switch: null
-        hold_position: false
+        name: OX PRESS
+        switch: 4
+        hold_position: null
 
   wanda3:
     enabled: false
@@ -80,32 +80,32 @@ PIs:
       1:
         name: null
         switch: null
-        hold_position: false
+        hold_position: null
       2:
         name: null
         switch: null
-        hold_position: false
+        hold_position: null
       3:
         name: null
         switch: null
-        hold_position: false
+        hold_position: null
       4:
         name: null
         switch: null
-        hold_position: false
+        hold_position: null
       5:
         name: null
         switch: null
-        hold_position: false
+        hold_position: null
       6:
         name: null
         switch: null
-        hold_position: false
+        hold_position: null
       7:
         name: null
         switch: null
-        hold_position: false
+        hold_position: null
       8:
         name: null
         switch: null
-        hold_position: false
+        hold_position: null
