@@ -11,7 +11,7 @@ ADC1:
     1: "pt1"
     2: "pt3"
     3: "pt7"
-    4: null
+    4: "pt9"
     5: "pt8"
     6: null
     7: null
@@ -36,8 +36,8 @@ ADC2:
 
 sensors:
   pt1:
-    zero: -2257.8
-    scale: 6562.1
+    zero: -1087.785122
+    scale: 3236.943746
   pt2:
     zero: -283.77
     scale: 918.83
@@ -45,20 +45,29 @@ sensors:
     zero: -283.77
     scale: 918.83
   pt4:
-    zero: 0
-    scale: 1
+    zero: -421.8198504
+    scale: 1246.784978
+#  pt4:
+#    zero: null
+#    scale: null
   pt5:
     zero: -283.77
     scale: 918.83
   pt6:
-    zero: 0
-    scale: 1
+    zero: -421.8198504
+    scale: 1246.784978
+ # pt6:
+ #   zero: null
+ #   scale: null
   pt7:
     zero: -283.77
     scale: 918.83
   pt8:
     zero: -283.77
     scale: 918.83
+  pt9:
+    zero: -748.9887104
+    scale: 2245.459841
   continuity_raw:
     zero: 0
     scale: 1
