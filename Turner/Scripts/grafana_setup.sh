@@ -6,7 +6,7 @@ set -euo pipefail
 
 readonly TURNER_USER="lti"
 readonly TURNER_HOME="/home/${TURNER_USER}"
-readonly TURNER_DIR="${TURNER_HOME}/Turner"
+readonly TURNER_DIR="${TURNER_HOME}/lti/Turner"
 readonly SCRIPTS_DIR="${TURNER_DIR}/Scripts"
 readonly CONTAINER_NAME="lti-grafana-1"
 readonly VOLUME_NAME="lti-grafana-data"
