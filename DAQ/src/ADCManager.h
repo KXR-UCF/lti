@@ -18,8 +18,8 @@ struct AdcConfig {
     ADS1256*      adc;
     Gain          gain;
     DataRate      dataRate;
-    ChannelConfig channels[MAX_CHANNELS_PER_ADC];
     uint8_t       numChannels;
+    ChannelConfig channels[MAX_CHANNELS_PER_ADC];
 };
 
 struct Reading {
