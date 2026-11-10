@@ -52,14 +52,14 @@ HOSTNAME = socket.gethostname()
 
 # questdb config
 QDB_CONF = (
-    'http::addr=192.168.1.32:9000;'
+    'http::addr=192.168.1.20:9000;'
     'auto_flush=on;'
     f'auto_flush_rows={QUESTDB_AUTO_FLUSH_ROWS};'
     f'auto_flush_interval={QUESTDB_AUTO_FLUSH_INTERVAL_MS};'
 )
 
 # grafana config
-GRAFANA_URL = f"http://192.168.1.32:3000/api/live/push/{HOSTNAME}"
+GRAFANA_URL = f"http://192.168.1.20:3000/api/live/push/{HOSTNAME}"
 try:
     with open(os.path.join(module_directory, "grafana.key"), 'r') as grafana_key_file:
         GRAFANA_TOKEN = grafana_key_file.read().strip()

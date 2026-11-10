@@ -18,8 +18,8 @@ from overrideCMD import OverrideManager
 DISCONNECT_TIMEOUT_SECONDS = 600
 
 # grafana config
-GRAFANA_URL = f"http://192.168.1.32:3000/api/live/push/controls"
-# GRAFANA_URL = f"http://192.168.1.32:3000/api/live/push/"
+GRAFANA_URL = f"http://192.168.1.20:3000/api/live/push/controls"
+# GRAFANA_URL = f"http://192.168.1.20:3000/api/live/push/"
 try:
     with open("grafana.key", 'r') as grafana_key_file:
         GRAFANA_TOKEN = grafana_key_file.read().strip()
@@ -39,7 +39,7 @@ class WorkerPi:
 
 # questdb configuration
 QUESTDB_CONF = (
-    'tcp::addr=192.168.1.32:9009;'
+    'tcp::addr=192.168.1.20:9009;'
     'auto_flush=on;'
     'auto_flush_rows=1;'
 )
