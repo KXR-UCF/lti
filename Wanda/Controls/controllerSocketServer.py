@@ -507,9 +507,10 @@ class ControllerServer:
                 fields = ",".join([f"{k}={int(v)}" for k, v in self.switch_states.items()])
                 payload = f"switches {fields}"
 
-                requests.post(GRAFANA_URL, data=payload, headers=GRAFANA_HEADERS, timeout=0.1)
-            except requests.exceptions.RequestException:
-                pass # Silently ignore network timeouts so we don't spam logs
+                response = requests.post(GRAFANA_URL, data=payload, headers=GRAFANA_HEADERS, timeout=0.1)
+                response.raise_for_status()
+            except requests.exceptions.RequestException as e:
+                print_log(f"Grafana push failed ({GRAFANA_URL}): {e}")
             except Exception as e:
                 print_log(f"Unexpected Grafana Formatting Error: {e}")
                

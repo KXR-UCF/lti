@@ -143,10 +143,11 @@ def grafana_worker():
 
         try:
             start = time.perf_counter()
-            requests.post(GRAFANA_URL, data=payload, headers=GRAFANA_HEADERS, timeout=0.1)
+            response = requests.post(GRAFANA_URL, data=payload, headers=GRAFANA_HEADERS, timeout=0.1)
+            response.raise_for_status()
             stats['grafana_send_time'].append(time.perf_counter() - start)
-        except requests.exceptions.RequestException:
-            pass # Silently ignore network timeouts so we don't spam logs
+        except requests.exceptions.RequestException as e:
+            print_log(f"Grafana push failed ({GRAFANA_URL}): {e}")
         except Exception as e:
             print_log(f"Unexpected Grafana Formatting Error: {e}")
 
