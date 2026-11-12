@@ -18,8 +18,8 @@ from overrideCMD import OverrideManager
 DISCONNECT_TIMEOUT_SECONDS = 600
 
 # grafana config
-GRAFANA_URL = f"http://192.168.1.32:3000/api/live/push/controls"
-# GRAFANA_URL = f"http://192.168.1.32:3000/api/live/push/"
+GRAFANA_URL = f"http://192.168.1.20:3000/api/live/push/controls"
+# GRAFANA_URL = f"http://192.168.1.20:3000/api/live/push/"
 try:
     with open("grafana.key", 'r') as grafana_key_file:
         GRAFANA_TOKEN = grafana_key_file.read().strip()
@@ -39,7 +39,7 @@ class WorkerPi:
 
 # questdb configuration
 QUESTDB_CONF = (
-    'tcp::addr=192.168.1.32:9009;'
+    'tcp::addr=192.168.1.20:9009;'
     'auto_flush=on;'
     'auto_flush_rows=1;'
 )
@@ -507,9 +507,10 @@ class ControllerServer:
                 fields = ",".join([f"{k}={int(v)}" for k, v in self.switch_states.items()])
                 payload = f"switches {fields}"
 
-                requests.post(GRAFANA_URL, data=payload, headers=GRAFANA_HEADERS, timeout=0.1)
-            except requests.exceptions.RequestException:
-                pass # Silently ignore network timeouts so we don't spam logs
+                response = requests.post(GRAFANA_URL, data=payload, headers=GRAFANA_HEADERS, timeout=0.1)
+                response.raise_for_status()
+            except requests.exceptions.RequestException as e:
+                print_log(f"Grafana push failed ({GRAFANA_URL}): {e}")
             except Exception as e:
                 print_log(f"Unexpected Grafana Formatting Error: {e}")
                

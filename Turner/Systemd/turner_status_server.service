@@ -1,0 +1,16 @@
+[Unit]
+Description=Turner Status Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/lti/Turner
+ExecStart=/home/lti/venv/bin/python3 -u /home/lti/Turner/turner_status_server.py
+StandardOutput=append:/home/lti/Turner/status.log
+StandardError=append:/home/lti/Turner/status.log
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -52,14 +52,14 @@ HOSTNAME = socket.gethostname()
 
 # questdb config
 QDB_CONF = (
-    'http::addr=192.168.1.32:9000;'
+    'http::addr=192.168.1.20:9000;'
     'auto_flush=on;'
     f'auto_flush_rows={QUESTDB_AUTO_FLUSH_ROWS};'
     f'auto_flush_interval={QUESTDB_AUTO_FLUSH_INTERVAL_MS};'
 )
 
 # grafana config
-GRAFANA_URL = f"http://192.168.1.32:3000/api/live/push/{HOSTNAME}"
+GRAFANA_URL = f"http://192.168.1.20:3000/api/live/push/{HOSTNAME}"
 try:
     with open(os.path.join(module_directory, "grafana.key"), 'r') as grafana_key_file:
         GRAFANA_TOKEN = grafana_key_file.read().strip()
@@ -143,10 +143,11 @@ def grafana_worker():
 
         try:
             start = time.perf_counter()
-            requests.post(GRAFANA_URL, data=payload, headers=GRAFANA_HEADERS, timeout=0.1)
+            response = requests.post(GRAFANA_URL, data=payload, headers=GRAFANA_HEADERS, timeout=0.1)
+            response.raise_for_status()
             stats['grafana_send_time'].append(time.perf_counter() - start)
-        except requests.exceptions.RequestException:
-            pass # Silently ignore network timeouts so we don't spam logs
+        except requests.exceptions.RequestException as e:
+            print_log(f"Grafana push failed ({GRAFANA_URL}): {e}")
         except Exception as e:
             print_log(f"Unexpected Grafana Formatting Error: {e}")
 

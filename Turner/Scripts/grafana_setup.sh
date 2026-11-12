@@ -1,29 +1,29 @@
 #!/usr/bin/env bash
-# Create and start the Grafana container for the designated WANDA Grafana host.
-# Run after wanda_pi_setup.sh, as the lti user.
+# Create and start the Grafana container for the designated TURNER Grafana host.
+# Run after turner_setup.sh, as the lti user.
 
 set -euo pipefail
 
-readonly WANDA_USER="lti"
-readonly WANDA_HOME="/home/${WANDA_USER}"
-readonly WANDA_DIR="${WANDA_HOME}/Wanda"
-readonly SCRIPTS_DIR="${WANDA_DIR}/Scripts"
+readonly TURNER_USER="lti"
+readonly TURNER_HOME="/home/${TURNER_USER}"
+readonly TURNER_DIR="${TURNER_HOME}/lti/Turner"
+readonly SCRIPTS_DIR="${TURNER_DIR}/Scripts"
 readonly CONTAINER_NAME="lti-grafana-1"
 readonly VOLUME_NAME="lti-grafana-data"
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-if [[ "$(id -un)" != "${WANDA_USER}" ]]; then
-    echo "Run this script as ${WANDA_USER}, not $(id -un)." >&2
+if [[ "$(id -un)" != "${TURNER_USER}" ]]; then
+    echo "Run this script as ${TURNER_USER}, not $(id -un)." >&2
     exit 1
 fi
 
 if [[ "${SCRIPT_DIR}" != "${SCRIPTS_DIR}" ]]; then
-    echo "Expected this repository at ${WANDA_DIR}; found the script at ${SCRIPT_DIR}." >&2
+    echo "Expected this repository at ${TURNER_DIR}; found the script at ${SCRIPT_DIR}." >&2
     exit 1
 fi
 
 if ! command -v docker > /dev/null; then
-    echo "Docker is not installed. Run wanda_pi_setup.sh first." >&2
+    echo "Docker is not installed. Run turner_pi_setup.sh first." >&2
     exit 1
 fi
 

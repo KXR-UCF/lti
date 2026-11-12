@@ -8,8 +8,8 @@ ADC1:
   DRDY_PIN: 22
   channels:
     0: "lc1"
-    1: "tc3"
-    2: "tc4"
+    1: "lc2"
+    2: "lc3"
     3: "lct"
 
 ADC2:
