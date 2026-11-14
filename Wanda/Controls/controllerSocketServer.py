@@ -98,6 +98,10 @@ class ControllerServer:
                     if relay_name:
                         self.relay_states[relay_name] = False
 
+        self.questdb_relay_queue = queue.Queue(maxsize=100)
+        self.questdb_relay_thread = threading.Thread(target=self.questdb_relay_worker, daemon=True)
+        self.questdb_relay_thread.start()
+
         # start relay grafana thread
         self.grafana_relay_queue = queue.Queue(maxsize=100)
         if GRAFANA_ENABLED:
@@ -109,7 +113,7 @@ class ControllerServer:
         self.override_manager = OverrideManager(self)
 
         # send defaults do grafana
-        self.post_relays_to_grafana()
+        self.post_relay_states()
         self.post_switches_to_grafana()
 
 
@@ -466,7 +470,7 @@ class ControllerServer:
                 relay_name = relay_data.get("name")
                 if relay_name:
                     self.relay_states[relay_name] = target_state
-                    self.post_relays_to_grafana()
+                    self.post_relay_states()
             except Exception as e:
                 print_log(f"[ERROR] Failed to update relay state tracking: {e}")
 
@@ -500,6 +504,7 @@ class ControllerServer:
                 print_log(f"QuestDB Error: {e}")
         self.post_switches_to_grafana()
 
+
     def post_switches_to_grafana(self) -> None:
         if GRAFANA_ENABLED:
             try:
@@ -513,18 +518,29 @@ class ControllerServer:
                 print_log(f"Grafana push failed ({GRAFANA_URL}): {e}")
             except Exception as e:
                 print_log(f"Unexpected Grafana Formatting Error: {e}")
-               
 
-    def post_relays_to_grafana(self) -> None:
+
+    def post_relay_states(self) -> None:
+        columns = {
+            str(name).replace(' ', '_').replace('/', '_'): bool(state)
+            for name, state in self.relay_states.copy().items()
+        }
+
+        packet = {
+            'columns': columns,
+            'time': datetime.now(tz=est)
+        }
+
+        try:
+            self.questdb_relay_queue.put_nowait(packet)
+        except queue.Full:
+            print_log(f"[WARNING] QuestDB Relay Queue Full, missing relay state")
+
         if GRAFANA_ENABLED:
             try:
-                snapshot = self.relay_states.copy()
-                self.grafana_relay_queue.put_nowait(snapshot)
+                self.grafana_relay_queue.put_nowait(packet)
             except queue.Full:
                 print_log(f"[WARNING] Grafana Queue Full, missing relay state")
-                pass
-            except Exception as e:
-                print_log(f"Grafana Queue Error: {e}")
 
 
     def grafana_relay_worker(self) -> None:
@@ -535,10 +551,10 @@ class ControllerServer:
                     break
 
                 # clean name
-                field_pairs = []
-                for name, state in relay_snapshot.items():
-                    clean_name = str(name).replace(' ', '_').replace('/', '_')
-                    field_pairs.append(f"{clean_name}={int(state)}")
+                field_pairs = [
+                    f"{name}={int(state)}"
+                    for name, state in relay_snapshot['columns'].items()
+                ]
 
                 fields = ",".join(field_pairs)
                 payload = f"relays {fields}"
@@ -549,9 +565,26 @@ class ControllerServer:
                 pass # silently ignore timeouts
             except Exception as e:
                 print_log(f"Grafana Worker Error: {e}")
-                
-                
     
+    def questdb_relay_worker(self) -> None:
+        while True:
+            try:
+                with Sender.from_conf(QUESTDB_CONF) as sender:
+                    while True:
+                        relay_snapshot = self.questdb_relay_queue.get()
+                        try:
+                            if relay_snapshot is None:
+                                return
+                            
+                            sender.row('relays', columns=relay_snapshot['columns'], at=relay_snapshot['time'])
+                            sender.flush()
+
+                        finally:
+                            self.questdb_relay_queue.task_done()
+            except Exception as e:
+                print_log(f"QuestDB Relay Worker Error: {e} \n Retrying in 1 second...")
+                time.sleep(1)
+
 
     def handle_command(self, cmd: str) -> None:
         """Handles the process for a command

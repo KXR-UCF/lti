@@ -1,6 +1,18 @@
 import time
 import threading
 
+# prints message with current time before each line for logging
+from datetime import datetime
+from pytz import timezone
+est = timezone('US/Eastern')
+def print_log(message:str):
+    lines = message.split('\n')
+    for line in lines:
+        print(f"[{datetime.now(tz=est).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]}] {line}")
+
+class SequenceAborted(Exception):
+    pass
+
 class OverrideManager:
     
     def __init__(self, controller_instance):
@@ -18,25 +30,36 @@ class OverrideManager:
             return True
         return False   
 
+    def set_relay_at(self, start, at_ms, pi, relay, state):
+        while(time.perf_counter() - start) * 1000 < at_ms:
+            if self.controller.abort:
+                raise SequenceAborted("Abort requested")
+        if self.controller.abort:
+            raise SequenceAborted("Abort requested")
+        return self.controller.set_relay(pi, relay, state)
+
     # TEST SEQUENCE
     def run_fire(self, state):
-        self.controller.set_relay("wanda1", 6, True)
-        self.controller.set_relay("wanda1", 7, True)
+        igniter_t_ms = 0
+        ox_open_t_ms = 250
+        fuel_open_t_ms = 260
+        ox_close_t_ms = 3000
+        fuel_close_t_ms = 3005
+        igniter_off_t_ms = 3005
 
         fire_start = time.perf_counter()
 
-        while (time.perf_counter() - fire_start) * 1000 < 100:
-            time.sleep(0.001)
-        self.controller.set_relay("wanda2", 1, True)
-        
-        while (time.perf_counter() - fire_start) * 1000 < 200:
-            time.sleep(0.001)
-        self.controller.set_relay("wanda2", 2, True)
+        try:
+        # ! The functions below must be in firing order 
+            self.set_relay_at(fire_start, igniter_t_ms, "wanda1", 8, True) # FIRE / IGNITER ON
+            self.set_relay_at(fire_start, ox_open_t_ms, "wanda2", 2, True) # OX MAIN OPEN
+            self.set_relay_at(fire_start, fuel_open_t_ms, "wanda2", 1, True) # FUEL MAIN OPEN
+            self.set_relay_at(fire_start, ox_close_t_ms, "wanda2", 2, False) # OX MAIN CLOSE
+            self.set_relay_at(fire_start, fuel_close_t_ms, "wanda2", 1, False) # FUEL MAIN CLOSE
+            self.set_relay_at(fire_start, igniter_off_t_ms, "wanda1", 8, False) # IGNITER OFF
+        except SequenceAborted:
+            print_log("Sequence aborted")
 
-        while (time.perf_counter() - fire_start) * 1000 < 300:
-            time.sleep(0.001)
-        self.controller.set_relay("wanda1", 8, True)
-        
 
     def run_fire_key(self, state):
         if state:

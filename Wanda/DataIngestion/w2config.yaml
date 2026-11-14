@@ -28,14 +28,14 @@ ADC2:
 
 sensors:
   lc1:
-    zero: 1.3445
-    scale: 123991
+    zero: null
+    scale: null
   lc2:
-    zero: 8.8317
-    scale: 122197
+    zero: null
+    scale: null
   lc3:
-    zero: 10.581
-    scale: 123989
+    zero: null
+    scale: null
   lct:
     zero: 10.644
     scale: 120001
