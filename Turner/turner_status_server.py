@@ -26,12 +26,16 @@ def resolve_file(filename):
 # Override hosts/ports in the systemd environment when network addresses change.
 DEVICES = [
     {'name': name, 'host': os.environ.get(f'TURNER_{key}_HOST', host),
-     'port': int(os.environ.get(f'TURNER_{key}_PORT', '5000'))}
-    for name, key, host in [
-        ('Cosmo', 'COSMO', '192.168.1.6'),
-        ('Wanda1', 'WANDA1', '192.168.1.30'),
-        ('Wanda2', 'WANDA2', '192.168.1.31'),
-        ('Wanda3', 'WANDA3', '192.168.1.32'),
+     'port': int(os.environ.get(f'TURNER_{key}_PORT', port))}
+    for name, key, host, port in [
+        ('Cosmo', 'COSMO', '192.168.1.6', '5000'),
+        ('Wanda1', 'WANDA1', '192.168.1.30', '5000'),
+        ('Wanda2', 'WANDA2', '192.168.1.31', '5000'),
+        ('Wanda3', 'WANDA3', '192.168.1.32', '5000'),
+        ('Grafana', 'TURNER', '192.168.1.20', '3000'),
+        ('QuestDB', 'TURNER', '192.168.1.20', '9000'),
+        ('Cameras', 'TURNER', 'https://192.168.1.222', '8971'),
+        
     ]
 ]
 
@@ -220,11 +224,15 @@ def index():
                 for (const device of devices) {{
                     const row = document.createElement('div');
                     row.className = 'svc-row';
-                    const label = document.createElement('span');
+                    const label = document.createElement('a');
+                    const urlHost = device.host.includes(':') ? '[' + device.host + ']' : device.host;
+                    label.href = 'http://' + urlHost + ':' + device.port + '/';
+                    label.target = '_blank';
+                    label.rel = 'noopener';
                     label.textContent = device.name + ' (' + device.host + ':' + device.port + ')';
                     const status = document.createElement('span');
                     status.className = 'svc-status ' + (device.online ? 'status-active' : 'status-inactive');
-                    status.textContent = device.online ? 'Online · ' + device.latency_ms + ' ms' : 'Unreachable';
+                    status.textContent = device.online ? 'Online· ' + device.latency_ms + ' ms' : 'Unreachable';
                     row.append(label, status);
                     container.append(row);
                 }}
