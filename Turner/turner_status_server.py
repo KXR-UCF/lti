@@ -26,15 +26,15 @@ def resolve_file(filename):
 # Override hosts/ports in the systemd environment when network addresses change.
 DEVICES = [
     {'name': name, 'host': os.environ.get(f'TURNER_{key}_HOST', host),
-     'port': int(os.environ.get(f'TURNER_{key}_PORT', port))}
-    for name, key, host, port in [
-        ('Cosmo', 'COSMO', '192.168.1.6', '5000'),
-        ('Wanda1', 'WANDA1', '192.168.1.30', '5000'),
-        ('Wanda2', 'WANDA2', '192.168.1.31', '5000'),
-        ('Wanda3', 'WANDA3', '192.168.1.32', '5000'),
-        ('Grafana', 'TURNER', '192.168.1.20', '3000'),
-        ('QuestDB', 'TURNER', '192.168.1.20', '9000'),
-        ('Cameras', 'TURNER', 'https://192.168.1.222', '8971'),
+     'port': int(os.environ.get(f'TURNER_{key}_PORT', port)), 'scheme': scheme}
+    for name, key, host, port, scheme in [
+        ('Cosmo', 'COSMO', '192.168.1.6', '5000', 'http'),
+        ('Wanda1', 'WANDA1', '192.168.1.30', '5000', 'http'),
+        ('Wanda2', 'WANDA2', '192.168.1.31', '5000', 'http'),
+        ('Wanda3', 'WANDA3', '192.168.1.32', '5000', 'http'),
+        ('Grafana', 'TURNER', '192.168.1.20', '3000', 'http'),
+        ('QuestDB', 'TURNER', '192.168.1.20', '9000', 'http'),
+        ('Cameras', 'CAMERAS', '192.168.1.222', '8971', 'https'),
         
     ]
 ]
@@ -226,7 +226,7 @@ def index():
                     row.className = 'svc-row';
                     const label = document.createElement('a');
                     const urlHost = device.host.includes(':') ? '[' + device.host + ']' : device.host;
-                    label.href = 'http://' + urlHost + ':' + device.port + '/';
+                    label.href = device.scheme + '://' + urlHost + ':' + device.port + '/';
                     label.target = '_blank';
                     label.rel = 'noopener';
                     label.textContent = device.name + ' (' + device.host + ':' + device.port + ')';
