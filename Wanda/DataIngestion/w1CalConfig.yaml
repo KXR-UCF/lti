@@ -1,0 +1,76 @@
+ADC1:
+  enabled: true
+  differential: false
+  gain: "GAIN_2"
+  data_rate: "3750SPS"
+  RST_PIN: 24
+  CS_PIN: 8        
+  DRDY_PIN: 22
+  channels:
+    0: "pt2"
+    1: "pt1"
+    2: "pt3"
+    3: "pt7"
+    4: "pt9"
+    5: "pt8"
+    6: null
+    7: null
+
+ADC2:
+  enabled: true
+  differential: false
+  gain: "GAIN_1"
+  data_rate: "3750SPS"
+  RST_PIN: 25
+  CS_PIN: 7 
+  DRDY_PIN: 23
+  channels:
+    0: "pt4"
+    1: "continuity_raw"
+    2: "pt6"
+    3: "pt5"
+    4: null
+    5: null
+    6: null
+    7: null
+
+sensors:
+  pt1:
+    zero: null
+    scale: null
+  pt2:
+    zero: null
+    scale: null
+  pt3:
+    zero: null
+    scale: null
+  pt4:
+    zero: null
+    scale: null
+  pt5:
+    zero: null
+    scale: null
+  pt6:
+    zero: null
+    scale: null
+  pt7:
+    zero: null
+    scale: null
+  pt8:
+    zero: null
+    scale: null
+  pt9:
+    zero: null
+    scale: null
+  continuity_raw:
+    zero: null
+    scale: null
+  pt100:
+    zero: null
+    scale: null
+  pt101:
+    zero: null
+    scale: null
+  pt102:
+    zero: null
+    scale: null
