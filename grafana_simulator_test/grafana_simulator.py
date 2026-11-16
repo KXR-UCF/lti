@@ -38,7 +38,7 @@ QUESTDB_QUEUE_SIZE = 2048
 # Grafana is a display stream, not the raw acquisition archive.  Collect all
 # samples received during each interval, publish their per-field median, and
 # retain the unfiltered stream in QuestDB.
-GRAFANA_SEND_HZ = 20
+GRAFANA_SEND_HZ = 100 # Increase Hz to decrease time step
 GRAFANA_WINDOW_SECONDS = 1.0 / GRAFANA_SEND_HZ
 GRAFANA_QUEUE_SIZE = 256
 
@@ -60,7 +60,9 @@ QDB_CONF = (
 )
 
 # grafana config
-GRAFANA_URL = f"http://localhost:3000/api/live/push/test_stream"
+GRAFANA_URL_MAIN = "http://localhost:3000/api/live/push/"
+URL1 = GRAFANA_URL_MAIN + "daq1_stream"
+URL2 = GRAFANA_URL_MAIN + "daq2_stream"
 try:
     with open(os.path.join(module_directory, "grafana.key"), 'r') as grafana_key_file:
         GRAFANA_TOKEN = grafana_key_file.read().strip()
@@ -80,9 +82,14 @@ stats = {
     'queue_wait': deque(maxlen=100)
 }
 
-# queues
+# Quest db queue
 questdb_queue = queue.Queue(QUESTDB_QUEUE_SIZE)
-grafana_queue = queue.Queue(GRAFANA_QUEUE_SIZE)
+
+# For first daq
+grafana_queue1 = queue.Queue(GRAFANA_QUEUE_SIZE)
+
+# For second daq
+grafana_queue2 = queue.Queue(GRAFANA_QUEUE_SIZE)
 
 def print_log(message:str):
     lines = message.split('\n')
@@ -91,7 +98,8 @@ def print_log(message:str):
 
 def grafana_worker():
     previous_filtered_columns = {}
-    window_samples = []
+    window_samples1 = []
+    window_samples2 = []
     next_publish_time = time.monotonic() + GRAFANA_WINDOW_SECONDS
 
     def filter_window(samples):
@@ -117,14 +125,14 @@ def grafana_worker():
         previous_filtered_columns.update(filtered_columns)
         return filtered_columns
 
-    def publish(columns):
+    def publish(url, columns):
         fields = ",".join([f"{key}={value}" for key, value in columns.items()])
         payload = f"telemetry {fields}"
 
         try:
             start = time.perf_counter()
             response = requests.post(
-                GRAFANA_URL,
+                url,
                 data=payload,
                 headers=GRAFANA_HEADERS,
                 timeout=0.1
@@ -145,9 +153,14 @@ def grafana_worker():
         while True:
             now = time.monotonic()
             if now >= next_publish_time:
-                if window_samples:
-                    publish(columns=filter_window(window_samples))
-                    window_samples.clear()
+                if window_samples1:
+                    cols = filter_window(window_samples1)
+                    publish(URL1, columns=cols)                    
+                    window_samples1.clear()
+                if window_samples2:
+                    cols = filter_window(window_samples2)
+                    publish(URL2, columns=cols)
+                    window_samples2.clear()
 
                 # Keep a fixed publish cadence even if a slow POST skipped one
                 # or more intervals.
@@ -158,19 +171,27 @@ def grafana_worker():
 
             timeout = next_publish_time - now
             try:
-                data = grafana_queue.get(timeout=timeout)
-            except queue.Empty:
+                data1 = grafana_queue1.get(timeout=timeout)
+                data2 = grafana_queue2.get(timeout=timeout)
+            except:
                 # The next iteration gives publishing precedence over dequeuing
                 # even when samples arrive continuously.
                 continue
 
-            if data is None:
-                break
+            for data, queue, sample in [
+                (data1, grafana_queue1, window_samples1), (data2, grafana_queue2, window_samples2)]:
+                if data is None:
+                    break
+                
+                # The sample is now retained by window samples, so 
+                # release the queue slot before the next request
+                sample.append(data['columns'])
+                queue.task_done()
 
-            window_samples.append(data['columns'])
-            # The sample is now retained by window_samples, so release the
-            # queue slot before the next Grafana HTTP request.
-            grafana_queue.task_done()
+            # window_samples.append(data['columns'])
+            # # The sample is now retained by window_samples, so release the
+            # # queue slot before the next Grafana HTTP request.
+            # grafana_queue.task_done()
 
     except Exception as e:
         print_log(f"Grafana Error: {e}")
@@ -208,8 +229,8 @@ try:
         loop_start = time.perf_counter()
         # save all sensor values
         adc_start = time.perf_counter()
-        columns1 = daq1.get_all_sensor_values()
-        columns2 = daq2.get_all_sensor_values()
+        columns1 = daq1.get_all_sensor_values(-5)
+        columns2 = daq2.get_all_sensor_values(5)
 
         # sum net force
         if net_force_measured1:
@@ -234,8 +255,9 @@ try:
 
         try:    
             if GRAFANA_ENABLED:
-                grafana_queue.put_nowait(packet1)
-                grafana_queue.put_nowait(packet2)
+                # Send request of data to grafana queues
+                grafana_queue1.put_nowait(packet1)
+                grafana_queue2.put_nowait(packet2)
         except queue.Full:
             if row_count % TARGET_RPS == 0:
                 print_log("Warning: Data Loss <GRAFANA QUEUE FULL>")

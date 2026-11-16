@@ -103,7 +103,7 @@ class DAQ:
     def get_sensor_dict(self) -> dict:
         return self.sensors
 
-    def get_all_sensor_values(self) -> dict:
+    def get_all_sensor_values(self, b: int = 0) -> dict:
         """
         Fetches and applies calibration to all configured sensors.
         
@@ -114,7 +114,7 @@ class DAQ:
         from math import sin
         for sensor in self.sensors.values():
             # print_log("Calibrating sensor" + str(sensor.name))
-            sensor_values[sensor.name] = sin(self.count)
+            sensor_values[sensor.name] = sin(self.count) + b
             # print_log("Sensor value is" + str(sin(self.count)))
             # sensor_values[sensor.name] = sensor.get_calibrated_value_linear()
         self.count += 1
