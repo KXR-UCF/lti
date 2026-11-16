@@ -3,7 +3,7 @@
 #KXR DAQ - calibration file for 4-8 channels
 import numpy as np
 import RPi.GPIO as GPIO
-import Wanda.DataIngestion.ADC.ADS1256 as ADS1256
+import ADS1256 as ADS1256
 import sys
 from collections import deque
 import time
